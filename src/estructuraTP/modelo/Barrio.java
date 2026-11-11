@@ -29,5 +29,8 @@ public abstract class Barrio {
 	//methods
 	public abstract int densidad();
 	public abstract boolean criticidad();
-	public abstract int cantidadPersonas();
+	
+	public int cantidadPersonas() {		
+		return personas.size();
+	}
 }

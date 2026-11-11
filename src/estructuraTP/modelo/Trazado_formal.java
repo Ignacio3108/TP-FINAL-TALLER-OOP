@@ -2,14 +2,14 @@ package estructuraTP.modelo;
 
 public class Trazado_formal extends Barrio {
 
-	private String cantidadEdif;
+	private int cantidadEdif;
 	private float percAsfalto;
 	
-	public String getCantidadEdif() {
+	public int getCantidadEdif() {
 		return cantidadEdif;
 	}
 
-	public void setCantidadEdif(String cantidadEdif) {
+	public void setCantidadEdif(int cantidadEdif) {
 		this.cantidadEdif = cantidadEdif;
 	}
 
@@ -21,7 +21,7 @@ public class Trazado_formal extends Barrio {
 		this.percAsfalto = percAsfalto;
 	}
 
-	public Trazado_formal(String nombre, int superficie, String cantidadEdif, float percAsfalto) {
+	public Trazado_formal(String nombre, int superficie, int cantidadEdif, float percAsfalto) {
 		super(nombre, superficie);
 		this.cantidadEdif = cantidadEdif;
 		this.percAsfalto = percAsfalto;
@@ -29,14 +29,10 @@ public class Trazado_formal extends Barrio {
 
 	//methods
 	public int densidad() {
-		
+		return cantidadPersonas() / cantidadEdif;
 	}
 
 	public boolean criticidad() {
-		
-	}
-
-	public int cantidadPersonas() {
-		
+		return percAsfalto < 95;
 	}
 }

@@ -29,14 +29,10 @@ public class Urbanizacion_planificada extends Barrio {
 
 	//methods
 	public int densidad() {
-		
+		return cantidadPersonas()/getSuperficie();
 	}
 
 	public boolean criticidad() {
-		
-	}
-
-	public int cantidadPersonas() {
-		
+		return !conexionAgua;
 	}
 }

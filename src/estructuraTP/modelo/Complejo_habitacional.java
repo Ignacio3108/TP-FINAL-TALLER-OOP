@@ -2,14 +2,14 @@ package estructuraTP.modelo;
 
 public class Complejo_habitacional extends Barrio {
 
-	private String cantidadMonob;
+	private int cantidadMonob;
 	private Boolean consorcio;
 	
-	public String getCantidadMonob() {
+	public int getCantidadMonob() {
 		return cantidadMonob;
 	}
 
-	public void setCantidadMonob(String cantidadMonob) {
+	public void setCantidadMonob(int cantidadMonob) {
 		this.cantidadMonob = cantidadMonob;
 	}
 
@@ -21,7 +21,7 @@ public class Complejo_habitacional extends Barrio {
 		this.consorcio = consorcio;
 	}
 
-	public Complejo_habitacional(String nombre, int superficie, String cantidadMonob, Boolean consorcio) {
+	public Complejo_habitacional(String nombre, int superficie, int cantidadMonob, Boolean consorcio) {
 		super(nombre, superficie);
 		this.cantidadMonob = cantidadMonob;
 		this.consorcio = consorcio;
@@ -29,14 +29,10 @@ public class Complejo_habitacional extends Barrio {
 
 	//methods
 	public int densidad() {
-		
+		return cantidadPersonas()/getCantidadMonob();
 	}
 
 	public boolean criticidad() {
-		
-	}
-
-	public int cantidadPersonas() {
-		
+		return !consorcio;
 	}
 }

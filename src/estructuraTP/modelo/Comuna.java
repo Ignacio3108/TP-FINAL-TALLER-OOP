@@ -41,7 +41,13 @@ public class Comuna {
 	}
 	
 	//methods
-	public ArrayList<Comuna> atencionPrioritaria() {
-		
+	public int percCriticidad() {
+		int barriosCriticos = 0;
+		for(Barrio i : barrios) {
+			if(i.criticidad()) {
+				barriosCriticos++;
+			}
+		}
+		return (barriosCriticos / barrios.size())*100;
 	}
 }
