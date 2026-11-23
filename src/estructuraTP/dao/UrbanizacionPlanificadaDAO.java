@@ -5,12 +5,10 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 
-//import estructuraTP.modelo.Barrio;
-//import estructuraTP.modelo.Trazado_formal;
-//import estructuraTP.modelo.Complejo_habitacional;
+import estructuraTP.modelo.Comuna;
 import estructuraTP.modelo.Urbanizacion_planificada;
 
 public class UrbanizacionPlanificadaDAO {
@@ -18,29 +16,31 @@ public class UrbanizacionPlanificadaDAO {
 	private final static String USR = "root";
 	private final static String PSS = "admin";
 
-	public boolean guardar(Urbanizacion_planificada urbanizacionPlanificada) {
+	// Valor que se guarda en la columna barrios.tipo para este tipo de barrio.
+	public final static String TIPO = "Urbanizacion planificada";
+
+	private final static String COLUMNAS = "`tipo` = ?, `nombre` = ?, `hectareas` = ?, `cantidad_ph` = ?, `porcentaje_asfalto` = ?, `numero_ley` = ?, `agua_potable` = ?, `cantidad_monoblocks` = ?, `consorcio` = ?";
+
+	public boolean guardar(Urbanizacion_planificada urbanizacionPlanificada, Comuna comuna) {
 		Connection c = null;
-		int filasAfectadas = 0;
+		boolean guardado = false;
 		try {
 			c = DriverManager.getConnection(URL, USR, PSS);
-			String sql = "INSERT INTO `barrios` (`tipo`, `nombre`, `hectareas`, `cantidad_ph`, `porcentaje_asfalto`, `numero_ley`, `agua_potable`, `cantidad_monoblocks`, `consorcio` ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
+			// El barrio y su comuna se guardan juntos o no se guarda nada.
+			c.setAutoCommit(false);
+			String sql = "INSERT INTO `barrios` (`tipo`, `nombre`, `hectareas`, `cantidad_ph`, `porcentaje_asfalto`, `numero_ley`, `agua_potable`, `cantidad_monoblocks`, `consorcio`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);";
 			PreparedStatement stmt = c.prepareStatement(sql);
-			stmt.setString(1, "Urbanizacion Planificada");
-			stmt.setString(2, urbanizacionPlanificada.getNombre());
-			stmt.setInt(3, urbanizacionPlanificada.getSuperficie());
-			stmt.setString(4, null);
-			stmt.setString(5, null);
-			stmt.setString(6, urbanizacionPlanificada.getNroLey());
-			stmt.setBoolean(7, urbanizacionPlanificada.getConexionAgua());
-			stmt.setString(8, null);
-			stmt.setString(9, null);
+			cargarParametros(stmt, urbanizacionPlanificada);
 
-
-			filasAfectadas = stmt.executeUpdate();
+			stmt.executeUpdate();
+			ComunasBarriosDAO.asociar(c, urbanizacionPlanificada.getNombre(), comuna.getNumero());
+			c.commit();
+			guardado = true;
 
 		} catch (SQLException e) {
-			// Si el número de comuna ya existe se viola el índice único y no se guarda.
+			// Si el nombre del barrio ya existe se viola el índice único y no se guarda.
 			e.printStackTrace();
+			ComunasBarriosDAO.deshacer(c);
 		} finally {
 			if (c != null) {
 				try {
@@ -50,24 +50,34 @@ public class UrbanizacionPlanificadaDAO {
 				}
 			}
 		}
-		return filasAfectadas == 0 ? false : true;
+		return guardado;
 	}
 
 	public boolean eliminar(String nombre) {
 		Connection c = null;
-		int filasAfectadas = 0;
+		boolean eliminado = false;
 		try {
 			c = DriverManager.getConnection(URL, USR, PSS);
-			String sql = "DELETE FROM barrios WHERE nombre = ?;";
+			c.setAutoCommit(false);
+			// Primero se borra la asociación con la comuna y después el barrio.
+			ComunasBarriosDAO.desasociar(c, nombre);
 
+			String sql = "DELETE FROM barrios WHERE nombre = ? AND tipo = ?;";
 			PreparedStatement stmt = c.prepareStatement(sql);
 			stmt.setString(1, nombre);
+			stmt.setString(2, TIPO);
 
-			filasAfectadas = stmt.executeUpdate();
+			if (stmt.executeUpdate() > 0) {
+				c.commit();
+				eliminado = true;
+			} else {
+				ComunasBarriosDAO.deshacer(c);
+			}
 
 		} catch (SQLException e) {
-			// Si la comuna tiene barrios asociados la clave foránea impide borrarla.
+			// Si el barrio tiene personas asociadas la clave foránea impide borrarlo.
 			e.printStackTrace();
+			ComunasBarriosDAO.deshacer(c);
 		} finally {
 			if (c != null) {
 				try {
@@ -77,33 +87,35 @@ public class UrbanizacionPlanificadaDAO {
 				}
 			}
 		}
-		return filasAfectadas == 0 ? false : true;
+		return eliminado;
 	}
 
-	public boolean actualizar(Urbanizacion_planificada UbPlActualizado, String nombre) {
+	public boolean actualizar(Urbanizacion_planificada urbanizacionPlanificadaActualizado, Comuna comuna, String nombreActual) {
 		Connection c = null;
-		int filasAfectadas = 0;
+		boolean actualizado = false;
 		try {
 			c = DriverManager.getConnection(URL, USR, PSS);
-			String sql = "UPDATE barrios SET `tipo` = ?, `nombre` = ?, `hectareas` = ?, `cantidad_ph` = ?, `porcentaje_asfalto` = ?, `numero_ley` = ?, `agua_potable` = ?, `cantidad_monoblocks` = ?, `consorcio` = ? WHERE `id_barrio` = ?;";
+			c.setAutoCommit(false);
+			// No se filtra por tipo: el UPDATE pisa todas las columnas, así que también
+			// sirve si el barrio cambia de tipo.
+			String sql = "UPDATE barrios SET " + COLUMNAS + " WHERE `nombre` = ?;";
 			PreparedStatement stmt = c.prepareStatement(sql);
-			stmt.setString(1, "Urbanizacion Planificada");
-			stmt.setString(2, UbPlActualizado.getNombre());
-			stmt.setInt(3, UbPlActualizado.getSuperficie());
-			stmt.setString(4, null);
-			stmt.setString(5, null);
-			stmt.setString(6, UbPlActualizado.getNroLey());
-			stmt.setBoolean(7, UbPlActualizado.getConexionAgua());
-			stmt.setString(8, null);
-			stmt.setString(9, null);
-			stmt.setString(10, nombre);
+			cargarParametros(stmt, urbanizacionPlanificadaActualizado);
+			stmt.setString(10, nombreActual);
 
-			filasAfectadas = stmt.executeUpdate();
+			if (stmt.executeUpdate() > 0) {
+				ComunasBarriosDAO.desasociar(c, urbanizacionPlanificadaActualizado.getNombre());
+				ComunasBarriosDAO.asociar(c, urbanizacionPlanificadaActualizado.getNombre(), comuna.getNumero());
+				c.commit();
+				actualizado = true;
+			} else {
+				ComunasBarriosDAO.deshacer(c);
+			}
 
 		} catch (SQLException e) {
-			// Si el nuevo número de comuna ya existe se viola el índice único y no se
-			// guarda.
+			// Si el nuevo nombre ya existe se viola el índice único y no se guarda.
 			e.printStackTrace();
+			ComunasBarriosDAO.deshacer(c);
 		} finally {
 			if (c != null) {
 				try {
@@ -113,25 +125,22 @@ public class UrbanizacionPlanificadaDAO {
 				}
 			}
 		}
-		return filasAfectadas == 0 ? false : true;
+		return actualizado;
 	}
 
-	public ArrayList<Urbanizacion_planificada> traerTodas() {
-		ArrayList<Urbanizacion_planificada> urbanizacionesPlanificadas = new ArrayList<Urbanizacion_planificada>();
+	public ArrayList<Urbanizacion_planificada> traerTodos() {
+		ArrayList<Urbanizacion_planificada> barrios = new ArrayList<Urbanizacion_planificada>();
 
 		Connection c = null;
 		try {
 			c = DriverManager.getConnection(URL, USR, PSS);
-			String sql = "SELECT nombre, hectareas, numero_ley, agua_potable FROM barrios ORDER BY id_barrio";
-			Statement stmt = c.createStatement();
-			ResultSet rs = stmt.executeQuery(sql);
+			String sql = "SELECT nombre, hectareas, numero_ley, agua_potable FROM barrios WHERE tipo = ? ORDER BY nombre";
+			PreparedStatement stmt = c.prepareStatement(sql);
+			stmt.setString(1, TIPO);
+			ResultSet rs = stmt.executeQuery();
 
 			while (rs.next()) {
-				urbanizacionesPlanificadas.add(new Urbanizacion_planificada(
-				        rs.getString("nombre"),
-				        rs.getInt("hectareas"),
-				        rs.getString("numero_ley"),
-				        rs.getBoolean("agua_potable")));
+				barrios.add(new Urbanizacion_planificada(rs.getString("nombre"), rs.getInt("hectareas"), rs.getString("numero_ley"), rs.getBoolean("agua_potable")));
 			}
 
 		} catch (SQLException e) {
@@ -146,26 +155,23 @@ public class UrbanizacionPlanificadaDAO {
 			}
 		}
 
-		return urbanizacionesPlanificadas;
+		return barrios;
 	}
 
-	public Urbanizacion_planificada buscarPorNumero(int numero) {
+	public Urbanizacion_planificada buscarPorNombre(String nombre) {
 		Urbanizacion_planificada urbanizacionPlanificada = null;
 		Connection c = null;
 		try {
 			c = DriverManager.getConnection(URL, USR, PSS);
-			String sql = "SELECT nombre, hectareas, numero_ley, agua_potable FROM barrios WHERE id_barrio = ?";
+			String sql = "SELECT nombre, hectareas, numero_ley, agua_potable FROM barrios WHERE nombre = ? AND tipo = ?";
 			PreparedStatement stmt = c.prepareStatement(sql);
-			stmt.setInt(1, numero);
+			stmt.setString(1, nombre);
+			stmt.setString(2, TIPO);
 			ResultSet rs = stmt.executeQuery();
 
-			// El número de comuna es único, por eso alcanza con un if.
+			// El nombre del barrio es único, por eso alcanza con un if.
 			if (rs.next()) {
-				urbanizacionPlanificada = new Urbanizacion_planificada(
-				        rs.getString("nombre"),
-				        rs.getInt("hectareas"),
-				        rs.getString("numero_ley"),
-				        rs.getBoolean("agua_potable"));
+				urbanizacionPlanificada = new Urbanizacion_planificada(rs.getString("nombre"), rs.getInt("hectareas"), rs.getString("numero_ley"), rs.getBoolean("agua_potable"));
 			}
 
 		} catch (SQLException e) {
@@ -181,6 +187,55 @@ public class UrbanizacionPlanificadaDAO {
 		}
 
 		return urbanizacionPlanificada;
+	}
+
+	// Barrios de este tipo que pertenecen a la comuna con ese número.
+	public ArrayList<Urbanizacion_planificada> traerPorComuna(int numeroComuna) {
+		ArrayList<Urbanizacion_planificada> barrios = new ArrayList<Urbanizacion_planificada>();
+
+		Connection c = null;
+		try {
+			c = DriverManager.getConnection(URL, USR, PSS);
+			String sql = "SELECT b.nombre, b.hectareas, b.numero_ley, b.agua_potable FROM barrios b "
+					+ "JOIN comunas_barrios cb ON cb.id_barrio = b.id_barrio "
+					+ "JOIN comunas c ON c.id_comuna = cb.id_comuna "
+					+ "WHERE c.numero = ? AND b.tipo = ? ORDER BY b.nombre";
+			PreparedStatement stmt = c.prepareStatement(sql);
+			stmt.setInt(1, numeroComuna);
+			stmt.setString(2, TIPO);
+			ResultSet rs = stmt.executeQuery();
+
+			while (rs.next()) {
+				barrios.add(new Urbanizacion_planificada(rs.getString("nombre"), rs.getInt("hectareas"), rs.getString("numero_ley"), rs.getBoolean("agua_potable")));
+			}
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (c != null) {
+				try {
+					c.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+		return barrios;
+	}
+
+	// Parámetros 1 a 9, en el orden de las columnas de la tabla barrios.
+	// Las columnas que no corresponden a este tipo de barrio se guardan en NULL.
+	private void cargarParametros(PreparedStatement stmt, Urbanizacion_planificada urbanizacionPlanificada) throws SQLException {
+		stmt.setString(1, TIPO);
+		stmt.setString(2, urbanizacionPlanificada.getNombre());
+		stmt.setInt(3, urbanizacionPlanificada.getSuperficie());
+		stmt.setNull(4, Types.INTEGER);
+		stmt.setNull(5, Types.FLOAT);
+		stmt.setString(6, urbanizacionPlanificada.getNroLey());
+		stmt.setBoolean(7, urbanizacionPlanificada.getConexionAgua());
+		stmt.setNull(8, Types.INTEGER);
+		stmt.setNull(9, Types.BIT);
 	}
 
 }

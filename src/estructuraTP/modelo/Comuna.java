@@ -31,6 +31,10 @@ public class Comuna {
 	}
 	
 	//methods
+	public void agregarBarrio(Barrio barrio) {
+		barrios.add(barrio);
+	}
+
 	public int cantidadBarrios() {
 		return barrios.size();
 	}

@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
+import estructuraTP.modelo.Barrio;
 import estructuraTP.modelo.Comuna;
 
 public class ComunaDAO {
@@ -123,7 +124,24 @@ public class ComunaDAO {
 			}
 		}
 
+		// Cada comuna incluye los barrios que tiene asociados (de los tres tipos).
+		for (Comuna comuna : comunas) {
+			cargarBarrios(comuna);
+		}
+
 		return comunas;
+	}
+
+	private void cargarBarrios(Comuna comuna) {
+		for (Barrio b : new TrazadoFormalDAO().traerPorComuna(comuna.getNumero())) {
+			comuna.agregarBarrio(b);
+		}
+		for (Barrio b : new UrbanizacionPlanificadaDAO().traerPorComuna(comuna.getNumero())) {
+			comuna.agregarBarrio(b);
+		}
+		for (Barrio b : new ComplejoHabitacionalDAO().traerPorComuna(comuna.getNumero())) {
+			comuna.agregarBarrio(b);
+		}
 	}
 
 	public Comuna buscarPorNumero(int numero) {
@@ -137,6 +155,39 @@ public class ComunaDAO {
 			ResultSet rs = stmt.executeQuery();
 
 			// El número de comuna es único, por eso alcanza con un if.
+			if (rs.next()) {
+				comuna = new Comuna(rs.getInt("numero"), rs.getString("sede"));
+			}
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			if (c != null) {
+				try {
+					c.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
+		return comuna;
+	}
+
+	// Devuelve la comuna a la que está asociado un barrio (tabla intermedia comunas_barrios).
+	public Comuna buscarPorBarrio(String nombreBarrio) {
+		Comuna comuna = null;
+		Connection c = null;
+		try {
+			c = DriverManager.getConnection(URL, USR, PSS);
+			String sql = "SELECT c.numero, c.sede FROM comunas c "
+					+ "JOIN comunas_barrios cb ON cb.id_comuna = c.id_comuna "
+					+ "JOIN barrios b ON b.id_barrio = cb.id_barrio "
+					+ "WHERE b.nombre = ?";
+			PreparedStatement stmt = c.prepareStatement(sql);
+			stmt.setString(1, nombreBarrio);
+			ResultSet rs = stmt.executeQuery();
+
 			if (rs.next()) {
 				comuna = new Comuna(rs.getInt("numero"), rs.getString("sede"));
 			}
