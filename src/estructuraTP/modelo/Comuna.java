@@ -7,7 +7,6 @@ public class Comuna {
 	
 	private int numero;
 	private String sede;
-	private String junta;
 	
 	public int getNumero() {
 		return numero;
@@ -25,22 +24,21 @@ public class Comuna {
 		this.sede = sede;
 	}
 
-	public String getJunta() {
-		return junta;
-	}
-
-	public void setJunta(String junta) {
-		this.junta = junta;
-	}
-
-	public Comuna(int numero, String sede, String junta) {
+	public Comuna(int numero, String sede) {
 		super();
 		this.numero = numero;
 		this.sede = sede;
-		this.junta = junta;
 	}
 	
 	//methods
+	public void agregarBarrio(Barrio barrio) {
+		barrios.add(barrio);
+	}
+
+	public int cantidadBarrios() {
+		return barrios.size();
+	}
+
 	public int percCriticidad() {
 		int barriosCriticos = 0;
 		for(Barrio i : barrios) {
